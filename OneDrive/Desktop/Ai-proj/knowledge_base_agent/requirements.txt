@@ -11,3 +11,4 @@ torchaudio
 langchain
 PyMuPDF
 langchain_text_splitters
+python-docx

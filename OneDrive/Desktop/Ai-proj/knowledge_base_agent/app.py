@@ -1,5 +1,5 @@
 import streamlit as st
-from pdf_processor import process_and_chunk_pdf
+from file_processor import process_uploaded_file
 from vector_store import VectorStore
 from models import generate_answer, load_model
 import logging
@@ -40,20 +40,35 @@ st.write("Upload a PDF document and ask questions about its content. The agent w
 
 # Sidebar for PDF Upload
 with st.sidebar:
-    st.header("1. Upload PDF")
-    uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+    st.header("1. Upload Documents")
+    uploaded_files = st.file_uploader(
+        "Choose PDF, TXT, or DOCX files", 
+        type=["pdf", "txt", "docx"], 
+        accept_multiple_files=True
+    )
 
-    if uploaded_file is not None:
-        if st.button("Process PDF"):
-            with st.spinner("Processing PDF... This may take a moment."):
-                logging.info(f"Processing uploaded file: {uploaded_file.name}")
-                chunked_docs = process_and_chunk_pdf(uploaded_file, uploaded_file.name)
-                vector_store = VectorStore()
-                vector_store.build(chunked_docs)
-                st.session_state.vector_store = vector_store
-                st.session_state.pdf_processed = True
-                logging.info("PDF processing complete.")
-            st.success("PDF processed successfully! You can now ask questions.")
+    if uploaded_files:
+        if st.button("Process Documents"):
+            with st.spinner("Processing documents... This may take a moment."):
+                all_docs = []
+                for uploaded_file in uploaded_files:
+                    try:
+                        logging.info(f"Processing uploaded file: {uploaded_file.name}")
+                        chunked_docs = process_uploaded_file(uploaded_file)
+                        all_docs.extend(chunked_docs)
+                    except Exception as e:
+                        st.error(f"Error processing {uploaded_file.name}: {e}")
+                        logging.error(f"Error processing {uploaded_file.name}: {e}", exc_info=True)
+
+                if all_docs:
+                    vector_store = VectorStore()
+                    vector_store.build(all_docs)
+                    st.session_state.vector_store = vector_store
+                    st.session_state.pdf_processed = True # Keeping this for now, but it's more than just PDFs
+                    logging.info("Document processing complete.")
+                    st.success("Documents processed successfully! You can now ask questions.")
+                else:
+                    st.warning("No documents were successfully processed.")
 
 # Main content area for Q&A
 st.header("2. Ask a Question")
@@ -84,7 +99,7 @@ if st.session_state.pdf_processed:
             relevant_chunks = st.session_state.vector_store.search(question)
             
             if not relevant_chunks:
-                st.warning("Could not retrieve relevant context. Please check the PDF content.")
+                st.warning("Could not retrieve relevant context. Please check the document content.")
                 logging.warning("No relevant chunks found for the question.")
             else:
                 logging.info("Generating answer...")
@@ -92,14 +107,14 @@ if st.session_state.pdf_processed:
                 logging.info("Answer generated.")
                 
                 st.subheader("Answer:")
-                st.markdown(answer.replace("→", "  \n\n→"))
+                st.markdown(answer)
                 
                 with st.expander("Show Context"):
                     for i, chunk in enumerate(relevant_chunks):
-                        st.write(f"**Chunk {i+1} (Source: {chunk.metadata['source']}, Chunk: {chunk.metadata['chunk_number']})**")
+                        st.write(f"**Chunk {i+1} (Source: {chunk.metadata['source']}, Page: {chunk.metadata['page']})**")
                         st.write(chunk.page_content)
                         st.divider()
 else:
-    st.warning("Please upload and process a PDF file first.")
+    st.warning("Please upload and process a document first.")
 
 logging.info("--- Streamlit App Script Finished ---")

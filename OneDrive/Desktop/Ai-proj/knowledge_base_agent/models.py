@@ -50,12 +50,12 @@ def generate_answer(question: str, context: List[Document], model, tokenizer, de
     """
     # Format the retrieved chunks into a single context string
     context_str = "\n---\n".join(
-        f"Source: {doc.metadata['source']}, Chunk: {doc.metadata['chunk_number']}\n\n{doc.page_content}"
+        f"Source: {doc.metadata['source']}, Page: {doc.metadata['page']}\n\n{doc.page_content}"
         for doc in context
     )
     
     # Mistral-instruct prompt template
-    prompt = f"""<s>[INST] You are a helpful AI assistant. Based on the context provided below, answer the user's question. Follow the requested format exactly.
+    prompt = f"""<s>[INST] You are a helpful AI assistant. Based on the context provided below, answer the user's question. You MUST follow the response format provided below EXACTLY. Do not include citations in the summary or detailed explanation.
 
 CONTEXT:
 {context_str}
@@ -64,9 +64,15 @@ QUESTION:
 {question}
 
 RESPONSE FORMAT:
-[SUMMARY]: (2-3 sentences with citations)
-[DETAILS]: (Bulleted list with citations)
-[CONFIDENCE]: (0-100%) [/INST]"""
+[SUMMARY]: (A detailed summary of 3-4 sentences explaining the answer)
+[DETAILS]:
+- (Provide at least 6-7 detailed bullet points. If the context is rich, provide more.)
+- (Another bullet point)
+- (etc.)
+
+(Source: <primary source file>, Pages: <relevant page numbers>)
+[CONFIDENCE]: (<percentage>%)
+[/INST]"""
 
     # Tokenize the prompt
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=4096).to(device)
@@ -75,7 +81,7 @@ RESPONSE FORMAT:
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
-            max_new_tokens=512,
+            max_new_tokens=1024, # Increased max tokens to allow for longer answers
             temperature=0.2,
             top_p=0.8,
             do_sample=True # do_sample must be True for temperature and top_p to have an effect
