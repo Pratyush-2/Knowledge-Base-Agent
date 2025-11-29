@@ -1,7 +1,7 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import torch
 from typing import List
-from pdf_processor import Document # Document is a TypedDict
+from langchain_core.documents import Document
 
 def load_model(model_name="mistralai/Mistral-7B-Instruct-v0.2"):
     """
@@ -50,7 +50,7 @@ def generate_answer(question: str, context: List[Document], model, tokenizer, de
     """
     # Format the retrieved chunks into a single context string
     context_str = "\n---\n".join(
-        f"Source: {doc['metadata']['source']}, Page: {doc['metadata']['page']}\n\n{doc['page_content']}"
+        f"Source: {doc.metadata['source']}, Chunk: {doc.metadata['chunk_number']}\n\n{doc.page_content}"
         for doc in context
     )
     

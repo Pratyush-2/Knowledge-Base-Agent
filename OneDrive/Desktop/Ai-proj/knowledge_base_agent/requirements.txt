@@ -1,10 +1,13 @@
-# For CUDA support, please install the appropriate version of torch, torchvision, and torchaudio
+# For CUDA support, please install the appropriate version of torch
 # See https://pytorch.org/get-started/locally/
 streamlit
-faiss-cpu # or faiss-gpu for CUDA
+faiss-cpu
 pypdf
 sentence-transformers
 transformers
 torch
 torchvision
 torchaudio
+langchain
+PyMuPDF
+langchain_text_splitters

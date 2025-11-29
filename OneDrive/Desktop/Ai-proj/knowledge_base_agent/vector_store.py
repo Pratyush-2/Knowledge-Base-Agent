@@ -2,7 +2,7 @@ import faiss
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from typing import List
-from pdf_processor import Document # Document is a TypedDict
+from langchain_core.documents import Document
 
 class VectorStore:
     def __init__(self, model_name='all-MiniLM-L6-v2'):
@@ -22,7 +22,7 @@ class VectorStore:
         """
         self.documents = documents
         # Encode only the page_content for the embeddings
-        page_contents = [doc["page_content"] for doc in documents]
+        page_contents = [doc.page_content for doc in documents]
         embeddings = self.model.encode(page_contents, convert_to_tensor=False)
         
         # Ensure embeddings are float32, as required by FAISS

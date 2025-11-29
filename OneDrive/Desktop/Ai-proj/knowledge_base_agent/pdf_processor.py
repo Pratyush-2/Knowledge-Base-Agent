@@ -1,10 +1,7 @@
-import fitz # PyMuPDF
-from typing import List, TypedDict
-
-# Define a TypedDict for a more structured document representation
-class Document(TypedDict):
-    page_content: str
-    metadata: dict
+import fitz  # PyMuPDF
+from typing import List
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 def clean_text(text: str) -> str:
     """
@@ -13,8 +10,8 @@ def clean_text(text: str) -> str:
     - Removes excessive newlines and whitespace.
     """
     replacements = {
-        '\uf0b7': '-',      # Replace special bullet with a standard dash
-        '': '-',           # Replace another common special bullet
+        '·': '-',      # Replace special bullet with a standard dash
+        '•': '-',           # Replace another common special bullet
         '✔': '✓',           # Standardize checkmarks
         '’': "'",           # Standardize apostrophes
         '“': '"',           # Standardize quotation marks
@@ -28,36 +25,43 @@ def clean_text(text: str) -> str:
     
     return text
 
-def process_pdf(uploaded_file, file_name: str) -> List[Document]:
+def process_and_chunk_pdf(uploaded_file, file_name: str) -> List[Document]:
     """
-    Processes an uploaded PDF file, extracting text and metadata from each page.
+    Processes an uploaded PDF file by extracting text, cleaning it, and then
+    splitting it into semantic chunks.
+
+    Args:
+        uploaded_file: The uploaded file object with a `read()` method.
+        file_name: The name of the source file.
+
+    Returns:
+        A list of LangChain Document objects, each representing a chunk of text.
     """
-    documents = []
+    full_text = ""
     # Open the PDF file from the uploaded file's in-memory buffer
     with fitz.open(stream=uploaded_file.read(), filetype="pdf") as doc:
-        for i, page in enumerate(doc):
-            text = page.get_text()
-            cleaned_text = clean_text(text) # Clean the extracted text
-            documents.append(Document(
-                page_content=cleaned_text,
-                metadata={'source': file_name, 'page': i + 1}
-            ))
-    return documents
+        for page in doc:
+            full_text += page.get_text()
 
-def chunk_documents(documents: List[Document], chunk_size=1000, chunk_overlap=200) -> List[Document]:
-    """
-    Chunks a list of documents into smaller, overlapping pieces.
-    This is a simplified implementation for demonstration. A real-world
-    application would use a more sophisticated text splitter, like one from LangChain.
-    """
-    chunked_docs = []
-    for doc in documents:
-        content = doc['page_content']
-        for i in range(0, len(content), chunk_size - chunk_overlap):
-            chunk_end = i + chunk_size
-            chunk = content[i:chunk_end]
-            chunked_docs.append(Document(
-                page_content=chunk,
-                metadata=doc['metadata']
-            ))
-    return chunked_docs
+    cleaned_text = clean_text(full_text)
+
+    # Initialize the semantic text splitter
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=700,
+        chunk_overlap=100,
+        length_function=len,
+        is_separator_regex=False,
+    )
+
+    # Split the text into chunks
+    text_chunks = text_splitter.split_text(cleaned_text)
+
+    # Create Document objects for each chunk
+    documents = []
+    for i, chunk in enumerate(text_chunks):
+        documents.append(Document(
+            page_content=chunk,
+            metadata={'source': file_name, 'chunk_number': i + 1}
+        ))
+        
+    return documents

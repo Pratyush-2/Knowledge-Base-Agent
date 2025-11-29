@@ -1,5 +1,5 @@
 import streamlit as st
-from pdf_processor import process_pdf, chunk_documents
+from pdf_processor import process_and_chunk_pdf
 from vector_store import VectorStore
 from models import generate_answer, load_model
 import logging
@@ -47,8 +47,7 @@ with st.sidebar:
         if st.button("Process PDF"):
             with st.spinner("Processing PDF... This may take a moment."):
                 logging.info(f"Processing uploaded file: {uploaded_file.name}")
-                page_documents = process_pdf(uploaded_file, uploaded_file.name)
-                chunked_docs = chunk_documents(page_documents)
+                chunked_docs = process_and_chunk_pdf(uploaded_file, uploaded_file.name)
                 vector_store = VectorStore()
                 vector_store.build(chunked_docs)
                 st.session_state.vector_store = vector_store
@@ -97,8 +96,8 @@ if st.session_state.pdf_processed:
                 
                 with st.expander("Show Context"):
                     for i, chunk in enumerate(relevant_chunks):
-                        st.write(f"**Chunk {i+1} (Source: {chunk['metadata']['source']}, Page: {chunk['metadata']['page']})**")
-                        st.write(chunk['page_content'])
+                        st.write(f"**Chunk {i+1} (Source: {chunk.metadata['source']}, Chunk: {chunk.metadata['chunk_number']})**")
+                        st.write(chunk.page_content)
                         st.divider()
 else:
     st.warning("Please upload and process a PDF file first.")
